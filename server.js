@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const QRCode = require('qrcode');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const server = http.createServer(app);
@@ -36,6 +37,27 @@ const AVATAR_COLORS = [
 function assignColor(index) {
   return AVATAR_COLORS[index % AVATAR_COLORS.length];
 }
+
+// Rate limiter for page routes
+const pageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Page routes
+app.get('/', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/join', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'join.html'));
+});
+
+app.get('/host', pageLimiter, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'host.html'));
+});
 
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
