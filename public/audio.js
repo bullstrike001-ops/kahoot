@@ -10,10 +10,10 @@ const AudioManager = (() => {
   let pendingWaiting = false;
 
   const SOURCES = {
-    waiting:    'https://assets.mixkit.co/music/preview/mixkit-games-worldbeat-466.mp3',
-    beep:       'https://assets.mixkit.co/sfx/preview/mixkit-sci-fi-click-900.wav',
-    aprilFools: 'https://assets.mixkit.co/sfx/preview/mixkit-cartoon-sad-trumpet-558.wav',
-    laugh:      'https://assets.mixkit.co/sfx/preview/mixkit-strange-voice-laugh-2032.wav'
+    waiting:    'https://cdn.pixabay.com/audio/2023/09/01/audio_174ef39ba3.mp3', // Dreamy Lofi – Waiting for a New Dawn (Pixabay #194478)
+    beep:       'https://cdn.pixabay.com/audio/2022/07/26/audio_124b2ee1d6.mp3', // Short Beep Countdown (Pixabay #81121)
+    aprilFools: 'https://cdn.pixabay.com/audio/2024/08/14/audio_9f4515bf2d.mp3', // Funny Trumpet Tune 15s (Pixabay #232408)
+    laugh:      'https://cdn.pixabay.com/audio/2022/03/15/audio_115bfa4c7f.mp3'  // Maniacal Laughter (Pixabay #177313)
   };
 
   const VOLUMES = { waiting: 0.4, beep: 0.6, aprilFools: 0.8, laugh: 0.8 };
