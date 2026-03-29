@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kahoot!</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Montserrat', 'Nunito', Arial, sans-serif;
+      background: #46178f;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.5s ease;
+    }
+
+    /* ── Join Screen ── */
+    #join-screen {
+      background: #fff;
+      border-radius: 8px;
+      padding: 36px 32px 40px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+    }
+
+    #join-screen .logo {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #46178f;
+      letter-spacing: -1px;
+      margin-bottom: 6px;
+    }
+
+    #join-screen .logo span {
+      color: #ff3355;
+    }
+
+    #join-screen .subtitle {
+      font-size: 0.85rem;
+      color: #777;
+      margin-bottom: 28px;
+    }
+
+    #join-screen input[type="text"] {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border: 3px solid #ddd;
+      border-radius: 6px;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 18px;
+      color: #333;
+    }
+
+    #join-screen input[type="text"]:focus {
+      border-color: #46178f;
+    }
+
+    #join-screen input[type="text"]::placeholder {
+      color: #bbb;
+      font-weight: 400;
+    }
+
+    #join-screen button {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.15rem;
+      font-weight: 800;
+      background: #46178f;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    #join-screen button:hover {
+      background: #5a21b0;
+    }
+
+    #join-screen button:active {
+      transform: scale(0.97);
+    }
+
+    /* ── Loading Screen ── */
+    #loading-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #loading-screen .nickname-badge {
+      background: #fff;
+      color: #46178f;
+      font-size: 1.4rem;
+      font-weight: 900;
+      padding: 12px 28px;
+      border-radius: 50px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    }
+
+    #loading-screen .you-are-in {
+      color: #fff;
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    #loading-screen .see-nickname {
+      color: rgba(255,255,255,0.85);
+      font-size: 0.95rem;
+      margin-bottom: 32px;
+    }
+
+    .spinner {
+      width: 52px;
+      height: 52px;
+      border: 5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Countdown Screen ── */
+    #countdown-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    #countdown-screen .loading-text {
+      color: #fff;
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 20px;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.6; }
+    }
+
+    #countdown-screen .timer {
+      font-size: 5rem;
+      font-weight: 900;
+      color: #fff;
+      line-height: 1;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    /* ── Prank Screen ── */
+    #prank-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+      position: fixed;
+      inset: 0;
+      background: #ff0000;
+      z-index: 9999;
+    }
+
+    #prank-screen .prank-text {
+      color: #fff;
+      font-size: clamp(1.6rem, 6vw, 3.2rem);
+      font-weight: 900;
+      line-height: 1.25;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      animation: bounceIn 0.6s ease;
+    }
+
+    @keyframes bounceIn {
+      0%   { transform: scale(0.7); opacity: 0; }
+      60%  { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 1. Join Screen -->
+  <div id="join-screen">
+    <div class="logo">kahoot<span>!</span></div>
+    <div class="subtitle">Enter your nickname to join</div>
+    <input type="text" id="nickname" placeholder="Nickname" maxlength="20" autocomplete="off" />
+    <button id="enter-btn">Enter</button>
+  </div>
+
+  <!-- 2. Loading Screen (waiting for game start) -->
+  <div id="loading-screen">
+    <div class="nickname-badge" id="display-nickname"></div>
+    <div class="you-are-in">You're in!</div>
+    <div class="see-nickname">See your nickname on screen</div>
+    <div class="spinner"></div>
+  </div>
+
+  <!-- 3. Countdown Screen (10-second game loading) -->
+  <div id="countdown-screen">
+    <div class="loading-text">Loading game...</div>
+    <div class="timer" id="timer">10</div>
+  </div>
+
+  <!-- 4. Prank Screen -->
+  <!-- Romanian: "APRIL FOOLS' PRANK! Put your phones in your pockets, we're switching to manual work." -->
+  <div id="prank-screen">
+    <div class="prank-text">
+      PĂCĂLEALĂ DE 1 APRILIE!<br />
+      Puneți telefoanele în buzunare,<br />
+      trecem la lucrul manual.
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const joinScreen     = document.getElementById('join-screen');
+    const loadingScreen  = document.getElementById('loading-screen');
+    const countdownScreen = document.getElementById('countdown-screen');
+    const prankScreen    = document.getElementById('prank-screen');
+    const nicknameInput  = document.getElementById('nickname');
+    const displayNickname = document.getElementById('display-nickname');
+    const timerEl        = document.getElementById('timer');
+    const enterBtn       = document.getElementById('enter-btn');
+
+    let countdownInterval = null;
+
+    function showScreen(screen) {
+      [joinScreen, loadingScreen, countdownScreen, prankScreen].forEach(s => {
+        s.style.display = 'none';
+      });
+      screen.style.display = 'flex';
+    }
+
+    enterBtn.addEventListener('click', () => {
+      const nickname = nicknameInput.value.trim();
+      if (!nickname) {
+        nicknameInput.focus();
+        return;
+      }
+      socket.emit('joinGame', nickname);
+      displayNickname.textContent = nickname;
+      showScreen(loadingScreen);
+    });
+
+    nicknameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') enterBtn.click();
+    });
+
+    socket.on('roomFull', () => {
+      alert('The game is full (40/40). Please try again later.');
+      showScreen(joinScreen);
+    });
+
+    socket.on('gameStarted', () => {
+      // Clear any previous countdown before starting a new one
+      if (countdownInterval) clearInterval(countdownInterval);
+
+      showScreen(countdownScreen);
+      let seconds = 10;
+      timerEl.textContent = seconds;
+
+      countdownInterval = setInterval(() => {
+        seconds--;
+        timerEl.textContent = seconds;
+        if (seconds <= 0) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+          showScreen(prankScreen);
+        }
+      }, 1000);
+    });
+
+    socket.on('disconnect', () => {
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+    });
+  </script>
+</body>
+</html>

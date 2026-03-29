@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kahoot! – Admin Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Montserrat', 'Nunito', Arial, sans-serif;
+      background: #46178f;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      color: #fff;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .header .logo {
+      font-size: 2.4rem;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+
+    .header .logo span {
+      color: #ff3355;
+    }
+
+    /* ── Main Grid ── */
+    .dashboard {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    @media (max-width: 640px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── Card ── */
+    .card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 16px;
+      padding: 28px;
+      text-align: center;
+    }
+
+    .card .card-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      opacity: 0.75;
+      margin-bottom: 12px;
+    }
+
+    /* ── Game PIN ── */
+    .pin-card .pin-value {
+      font-size: 4.5rem;
+      font-weight: 900;
+      letter-spacing: 6px;
+      line-height: 1;
+      color: #fff;
+      text-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    }
+
+    /* ── QR Code ── */
+    .qr-card .qr-placeholder {
+      width: 180px;
+      height: 180px;
+      background: #fff;
+      border-radius: 8px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      padding: 12px;
+    }
+
+    .qr-card .qr-placeholder img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 4px;
+    }
+
+    /* ── User Counter ── */
+    .counter-card .counter-value {
+      font-size: 5rem;
+      font-weight: 900;
+      line-height: 1;
+      color: #fff;
+    }
+
+    .counter-card .counter-max {
+      font-size: 1.6rem;
+      opacity: 0.7;
+    }
+
+    .counter-card .progress-bar-wrap {
+      background: rgba(255,255,255,0.2);
+      border-radius: 50px;
+      height: 12px;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+
+    .counter-card .progress-bar {
+      height: 100%;
+      background: #ff3355;
+      border-radius: 50px;
+      width: 0%;
+      transition: width 0.4s ease;
+    }
+
+    /* ── Start Button ── */
+    .start-card .start-btn {
+      background: #ff3355;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 22px 40px;
+      font-size: 1.6rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s, transform 0.1s;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    .start-card .start-btn:hover {
+      background: #e0002e;
+    }
+
+    .start-card .start-btn:active {
+      transform: scale(0.96);
+    }
+
+    .start-card .start-btn:disabled {
+      background: #888;
+      cursor: not-allowed;
+    }
+
+    .start-card .start-hint {
+      margin-top: 12px;
+      font-size: 0.8rem;
+      opacity: 0.65;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo">kahoot<span>!</span></div>
+  </div>
+
+  <div class="dashboard">
+
+    <!-- Game PIN -->
+    <div class="card pin-card">
+      <div class="card-label">Game PIN</div>
+      <div class="pin-value">837492</div>
+    </div>
+
+    <!-- QR Code -->
+    <div class="card qr-card">
+      <div class="card-label">Scan to Join</div>
+      <div class="qr-placeholder">
+        <!-- Replace with: <img src="qr.png" alt="QR Code" /> -->
+        QR Code<br />Insert image here
+      </div>
+    </div>
+
+    <!-- User Counter -->
+    <div class="card counter-card">
+      <div class="card-label">Connected Players</div>
+      <div>
+        <span class="counter-value" id="user-count">0</span>
+        <span class="counter-max">/40</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progress-bar"></div>
+      </div>
+    </div>
+
+    <!-- Start Game -->
+    <div class="card start-card">
+      <div class="card-label">Controls</div>
+      <button class="start-btn" id="start-btn">▶ Start Game</button>
+      <div class="start-hint">Click to send game start signal to all players</div>
+    </div>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    const userCountEl  = document.getElementById('user-count');
+    const progressBar  = document.getElementById('progress-bar');
+    const startBtn     = document.getElementById('start-btn');
+
+    socket.on('userCountUpdate', (count) => {
+      userCountEl.textContent = count;
+      progressBar.style.width = (count / 40 * 100) + '%';
+    });
+
+    startBtn.addEventListener('click', () => {
+      startBtn.disabled = true;
+      startBtn.textContent = '⏳ Game Started!';
+      socket.emit('startGame', 'kahoot-admin-2026');
+    });
+  </script>
+</body>
+</html>
