@@ -2,20 +2,26 @@
 
 const express = require('express');
 const path = require('path');
-
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Serve HTML files for /admin and / endpoints
-app.get('/admin', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'admin.html'));
-});
+// Set the view engine (if needed)
+app.set('view engine', 'html');
 
+// Serve static files from the public directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Explicit routes
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'views', 'index.html'));
+    // Render the homepage
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start the server
+app.get('/admin', (req, res) => {
+    // Render the admin page
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
