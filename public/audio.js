@@ -10,15 +10,26 @@ const AudioManager = (() => {
   let pendingWaiting = false;
 
   const SOURCES = {
-    waiting:    'https://cdn.pixabay.com/audio/2023/09/01/audio_174ef39ba3.mp3', // Dreamy Lofi – Waiting for a New Dawn (Pixabay #194478)
-    beep:       'https://cdn.pixabay.com/audio/2022/07/26/audio_124b2ee1d6.mp3', // Short Beep Countdown (Pixabay #81121)
+    waiting:    'https://cdn.pixabay.com/audio/2022/10/25/audio_946b6cedc3.mp3', // Lofi Ambient Game Background (Pixabay)
     aprilFools: 'https://cdn.pixabay.com/audio/2024/08/14/audio_9f4515bf2d.mp3', // Funny Trumpet Tune 15s (Pixabay #232408)
     laugh:      'https://cdn.pixabay.com/audio/2022/03/15/audio_115bfa4c7f.mp3'  // Maniacal Laughter (Pixabay #177313)
   };
 
-  const VOLUMES = { waiting: 0.4, beep: 0.6, aprilFools: 0.8, laugh: 0.8 };
+  const VOLUMES = { waiting: 0.4, aprilFools: 0.8, laugh: 0.8 };
+  const BEEP_VOLUME = 0.7;
 
   const sounds = {};
+
+  // ── Shared Web Audio context ──────────────────────────────────────────────
+
+  let _audioCtx = null;
+  function _getAudioCtx() {
+    if (!_audioCtx || _audioCtx.state === 'closed') {
+      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (_audioCtx.state === 'suspended') _audioCtx.resume();
+    return _audioCtx;
+  }
 
   // ── Preload ───────────────────────────────────────────────────────────────
 
@@ -62,10 +73,38 @@ const AudioManager = (() => {
     audio.currentTime = 0;
   }
 
-  /** Play one countdown beep (stops waiting music on first call). */
+  /** Play one countdown beep (stops waiting music on first call). Synthesised via Web Audio API. */
   function playCountdownBeep() {
     stopWaiting();
-    _play('beep');
+    if (muted) return;
+    try {
+      const ctx = _getAudioCtx();
+      const vol = BEEP_VOLUME;
+      // First tone: sharp high sweep (sci-fi descending)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(1400, ctx.currentTime);
+      osc1.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + 0.15);
+      gain1.gain.setValueAtTime(vol, ctx.currentTime);
+      gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+      osc1.start(ctx.currentTime);
+      osc1.stop(ctx.currentTime + 0.15);
+      // Second tone: lower echo note
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(700, ctx.currentTime + 0.15);
+      osc2.frequency.exponentialRampToValueAtTime(350, ctx.currentTime + 0.55);
+      gain2.gain.setValueAtTime(vol * 0.6, ctx.currentTime + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+      osc2.start(ctx.currentTime + 0.15);
+      osc2.stop(ctx.currentTime + 0.55);
+    } catch (e) { /* Web Audio API unavailable */ }
   }
 
   /** Play the April Fools reveal sound combo (trombone + laugh). */

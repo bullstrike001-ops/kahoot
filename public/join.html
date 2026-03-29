@@ -73,6 +73,12 @@
         <div class="text-muted" style="font-size:0.85rem; margin-top:12px;">
           Waiting for the host to start…
         </div>
+        <div style="margin-top:16px;">
+          <button id="mute-btn" title="Toggle sound"
+            style="background:none; border:none; cursor:pointer; font-size:1.4rem; line-height:1; padding:0; color:inherit;">
+            🔊
+          </button>
+        </div>
       </div>
 
     </div>
@@ -98,6 +104,7 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
+  <script src="audio.js"></script>
   <script>
     const AVATARS = ['🦊', '🐼', '🦁', '🐯', '🐨', '🦄', '🐸', '🐧',
                      '🦋', '🐙', '🦖', '🐳', '🦝', '🐻', '🦩', '🐬',
@@ -133,13 +140,14 @@
 
     // Socket events
     socket.on('game:state', ({ status, countdownValue }) => {
-      if (status === 'countdown') showCountdown(countdownValue);
-      if (status === 'reveal') showReveal();
+      if (status === 'waiting')   AudioManager.playWaiting();
+      if (status === 'countdown') { AudioManager.playCountdownBeep(); showCountdown(countdownValue); }
+      if (status === 'reveal')    showReveal();
     });
 
-    socket.on('game:countdown', ({ value }) => showCountdown(value));
-    socket.on('game:reveal', () => { hideCountdown(); showReveal(); });
-    socket.on('game:reset', () => { hideCountdown(); hideReveal(); showJoinForm(); });
+    socket.on('game:countdown', ({ value }) => { AudioManager.playCountdownBeep(); showCountdown(value); });
+    socket.on('game:reveal', () => { hideCountdown(); AudioManager.playAprilFools(); showReveal(); });
+    socket.on('game:reset', () => { AudioManager.stopAll(); hideCountdown(); hideReveal(); showJoinForm(); });
 
     socket.on('join:success', ({ player }) => {
       document.getElementById('join-form').classList.add('hidden');
@@ -147,7 +155,16 @@
       success.classList.add('active');
       document.getElementById('success-avatar').textContent = player.avatar;
       document.getElementById('success-name').textContent = `Hey, ${player.nickname}! 👋`;
+      AudioManager.playWaiting();
     });
+
+    const muteBtn = document.getElementById('mute-btn');
+    if (muteBtn) {
+      muteBtn.addEventListener('click', () => {
+        const nowMuted = AudioManager.toggleMute();
+        muteBtn.textContent = nowMuted ? '🔇' : '🔊';
+      });
+    }
 
     socket.on('join:error', ({ message }) => {
       showError('join-error', message);
