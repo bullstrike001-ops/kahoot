@@ -1,16 +1,13 @@
 {
-  "name": "rahoot",
+  "name": "kahoot-april-fools",
+  "version": "1.0.0",
+  "description": "Minimal Kahoot April Fools prank",
+  "main": "server.js",
   "scripts": {
-    "dev": "dotenv -e .env -- pnpm -r --parallel dev",
-    "dev:web": "dotenv -e .env -- pnpm --filter web dev",
-    "dev:socket": "dotenv -e .env -- pnpm --filter socket dev",
-    "build": "pnpm -r run build",
-    "start": "pnpm -r --parallel run start",
-    "clean": "pnpm -r exec rm -rf dist node_modules",
-    "lint": "pnpm -r --parallel run lint"
+    "start": "node server.js"
   },
-  "devDependencies": {
-    "dotenv-cli": "^11.0.0",
-    "typescript": "^5.9.3"
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
   }
 }
