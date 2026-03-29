@@ -405,8 +405,10 @@ h3 { font-size: clamp(1.1rem, 3vw, 1.5rem); font-weight: 600; }
 }
 
 .qr-container {
-  display: inline-block;
-  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
   background: white;
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-card);
@@ -415,8 +417,9 @@ h3 { font-size: clamp(1.1rem, 3vw, 1.5rem); font-weight: 600; }
 
 .qr-container img {
   display: block;
-  width: 160px;
-  height: 160px;
+  width: 100%;
+  max-width: 300px;
+  height: auto;
 }
 
 .qr-hint {
