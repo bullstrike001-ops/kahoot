@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuizBlitz – Live Quiz Platform</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+</head>
+<body>
+  <div class="page">
+    <div class="container">
+
+      <!-- Brand -->
+      <div class="brand">
+        <span class="brand-icon">⚡</span>
+        <div class="brand-name">QuizBlitz</div>
+        <div class="brand-tagline">Live Game Show Platform</div>
+      </div>
+
+      <div class="game-main">
+        <!-- Left: PIN + Players -->
+        <div>
+          <div class="card" style="margin-bottom:20px;">
+            <div class="pin-display">
+              <div class="pin-label">Game PIN</div>
+              <div class="pin-value" id="pin-value">------</div>
+            </div>
+            <div style="text-align:center; color:var(--text-secondary); font-size:0.9rem;">
+              Go to <strong style="color:#c084fc;" id="join-url"></strong> to join with this PIN
+            </div>
+          </div>
+
+          <!-- Players -->
+          <div class="card">
+            <div class="players-header">
+              <h3>Players</h3>
+              <span class="player-count-badge" id="player-count">0 joined</span>
+            </div>
+            <div class="players-grid" id="players-grid">
+              <div class="empty-state" id="empty-state">
+                <span class="empty-state-icon">👋</span>
+                Waiting for players to join…
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: QR Code -->
+        <div class="card qr-section">
+          <div style="font-size:0.8rem; text-transform:uppercase; letter-spacing:2px; color:var(--text-muted); margin-bottom:12px;">
+            Scan to join
+          </div>
+          <div class="qr-container">
+            <img id="qr-img" src="" alt="QR Code" width="160" height="160" />
+          </div>
+          <div class="qr-hint" id="qr-url"></div>
+          <div style="margin-top: 16px;">
+            <div class="status-bar" style="justify-content:center;">
+              <div class="status-dot" id="status-dot"></div>
+              <span id="status-text">Connecting…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Countdown Overlay -->
+  <div class="countdown-overlay" id="countdown-overlay">
+    <div class="countdown-label">Get ready!</div>
+    <div class="countdown-number" id="countdown-number">10</div>
+    <div class="countdown-subtext">Game starting in…</div>
+  </div>
+
+  <!-- Reveal Overlay -->
+  <div class="reveal-overlay" id="reveal-overlay">
+    <canvas id="confetti-canvas"></canvas>
+    <span class="reveal-emoji">😄</span>
+    <div class="reveal-title">APRIL FOOLS!</div>
+    <div class="reveal-subtitle">No quiz today! 🎉</div>
+    <div class="reveal-action">
+      <a href="/" class="btn btn-outline btn-lg">Play again?</a>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+  <script>
+    const socket = io();
+    const pinEl = document.getElementById('pin-value');
+    const playersGrid = document.getElementById('players-grid');
+    const emptyState = document.getElementById('empty-state');
+    const playerCount = document.getElementById('player-count');
+    const qrImg = document.getElementById('qr-img');
+    const qrUrl = document.getElementById('qr-url');
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+
+    // Load QR code
+    async function loadQR() {
+      try {
+        const res = await fetch('/api/qrcode');
+        const data = await res.json();
+        if (data.qr) {
+          qrImg.src = data.qr;
+          qrUrl.textContent = data.url;
+          const joinUrlEl = document.getElementById('join-url');
+          if (joinUrlEl) joinUrlEl.textContent = `${window.location.host}/join`;
+        }
+      } catch (e) { /* silent */ }
+    }
+    loadQR();
+
+    socket.on('connect', () => {
+      setStatus(true, 'Live');
+    });
+
+    socket.on('disconnect', () => {
+      setStatus(false, 'Disconnected');
+    });
+
+    function setStatus(connected, label) {
+      statusDot.className = 'status-dot' + (connected ? '' : ' disconnected');
+      statusText.textContent = label;
+    }
+
+    socket.on('game:state', ({ pin, players, status, countdownValue }) => {
+      pinEl.textContent = pin;
+      renderPlayers(players);
+      if (status === 'countdown') showCountdown(countdownValue);
+      if (status === 'reveal') showReveal();
+    });
+
+    socket.on('game:reset', ({ pin }) => {
+      pinEl.textContent = pin;
+      renderPlayers([]);
+      hideCountdown();
+      hideReveal();
+      loadQR();
+    });
+
+    socket.on('players:update', ({ players }) => {
+      renderPlayers(players);
+    });
+
+    socket.on('game:countdown', ({ value }) => {
+      showCountdown(value);
+    });
+
+    socket.on('game:reveal', () => {
+      hideCountdown();
+      showReveal();
+    });
+
+    function renderPlayers(players) {
+      const count = players.length;
+      playerCount.textContent = count + (count === 1 ? ' player joined' : ' players joined');
+
+      if (count === 0) {
+        playersGrid.innerHTML = '';
+        if (!document.getElementById('empty-state')) {
+          playersGrid.innerHTML = '<div class="empty-state" id="empty-state"><span class="empty-state-icon">👋</span>Waiting for players to join…</div>';
+        }
+        return;
+      }
+
+      playersGrid.innerHTML = players.map(p => `
+        <div class="player-card">
+          <div class="player-avatar" style="background:${p.color}20; border:2px solid ${p.color};">
+            <span>${p.avatar}</span>
+          </div>
+          <span class="player-name">${escapeHtml(p.nickname)}</span>
+        </div>
+      `).join('');
+    }
+
+    function showCountdown(value) {
+      const overlay = document.getElementById('countdown-overlay');
+      const numEl = document.getElementById('countdown-number');
+      overlay.classList.add('active');
+      numEl.textContent = value;
+      numEl.classList.remove('tick');
+      void numEl.offsetWidth; // force reflow
+      numEl.classList.add('tick');
+    }
+
+    function hideCountdown() {
+      document.getElementById('countdown-overlay').classList.remove('active');
+    }
+
+    function showReveal() {
+      hideCountdown();
+      const overlay = document.getElementById('reveal-overlay');
+      overlay.classList.add('active');
+      startConfetti();
+    }
+
+    function hideReveal() {
+      document.getElementById('reveal-overlay').classList.remove('active');
+      stopConfetti();
+    }
+  </script>
+</body>
+</html>

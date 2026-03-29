@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Host Panel – QuizBlitz</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+</head>
+<body>
+  <div class="page" style="justify-content:flex-start; padding-top:32px;">
+    <div class="container" style="max-width:700px;">
+
+      <div class="brand">
+        <span class="brand-icon">🎛️</span>
+        <div class="brand-name">Host Panel</div>
+        <div class="brand-tagline">QuizBlitz Control Center</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="host-stats">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-pin">------</div>
+          <div class="stat-label">Game PIN</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-players">0</div>
+          <div class="stat-label">Players</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-status">Waiting</div>
+          <div class="stat-label">Status</div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <div class="card" style="margin-bottom:20px; text-align:center;">
+        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+          <button class="btn btn-success btn-lg" id="start-btn" onclick="startGame()">
+            <span>▶</span> Start Game
+          </button>
+          <button class="btn btn-outline btn-lg" id="reset-btn" onclick="resetGame()">
+            <span>🔄</span> New Game
+          </button>
+        </div>
+        <div class="form-error" id="host-error" style="text-align:center; margin-top:12px;"></div>
+      </div>
+
+      <!-- Players List -->
+      <div class="card">
+        <div class="players-header">
+          <h3>Connected Players</h3>
+          <span class="player-count-badge" id="player-count">0</span>
+        </div>
+        <div id="players-list" style="display:flex; flex-direction:column; gap:8px;">
+          <div class="empty-state" id="empty-state">
+            <span class="empty-state-icon">👥</span>
+            No players yet. Share the PIN!
+          </div>
+        </div>
+      </div>
+
+      <!-- Connection status -->
+      <div style="text-align:center; margin-top:16px;">
+        <div class="status-bar" style="display:inline-flex;">
+          <div class="status-dot" id="status-dot"></div>
+          <span id="status-text">Connecting…</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Countdown Overlay -->
+  <div class="countdown-overlay" id="countdown-overlay">
+    <div class="countdown-label">Get ready!</div>
+    <div class="countdown-number" id="countdown-number">10</div>
+    <div class="countdown-subtext">Game starting in…</div>
+  </div>
+
+  <!-- Reveal Overlay -->
+  <div class="reveal-overlay" id="reveal-overlay">
+    <canvas id="confetti-canvas"></canvas>
+    <span class="reveal-emoji">😄</span>
+    <div class="reveal-title">APRIL FOOLS!</div>
+    <div class="reveal-subtitle">No quiz today! 🎉</div>
+    <div class="reveal-action">
+      <button class="btn btn-outline btn-lg" onclick="resetGame()">
+        🔄 New Game
+      </button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+  <script>
+    const socket = io();
+
+    socket.on('connect', () => setStatus(true, 'Connected'));
+    socket.on('disconnect', () => setStatus(false, 'Disconnected'));
+
+    function setStatus(ok, label) {
+      document.getElementById('status-dot').className = 'status-dot' + (ok ? '' : ' disconnected');
+      document.getElementById('status-text').textContent = label;
+    }
+
+    socket.on('game:state', ({ pin, players, status, countdownValue }) => {
+      document.getElementById('stat-pin').textContent = pin;
+      renderPlayers(players);
+      updateStatus(status);
+      if (status === 'countdown') showCountdown(countdownValue);
+      if (status === 'reveal') showReveal();
+    });
+
+    socket.on('players:update', ({ players }) => {
+      renderPlayers(players);
+      document.getElementById('stat-players').textContent = players.length;
+    });
+
+    socket.on('game:countdown', ({ value }) => showCountdown(value));
+
+    socket.on('game:reveal', () => {
+      hideCountdown();
+      showReveal();
+      updateStatus('reveal');
+    });
+
+    socket.on('game:reset', ({ pin }) => {
+      document.getElementById('stat-pin').textContent = pin;
+      renderPlayers([]);
+      updateStatus('waiting');
+      hideCountdown();
+      hideReveal();
+      document.getElementById('start-btn').disabled = false;
+      document.getElementById('start-btn').innerHTML = '<span>▶</span> Start Game';
+      clearError();
+    });
+
+    socket.on('host:error', ({ message }) => {
+      showError(message);
+    });
+
+    function startGame() {
+      clearError();
+      socket.emit('host:start');
+      document.getElementById('start-btn').disabled = true;
+      document.getElementById('start-btn').innerHTML = '<span>⏳</span> Starting…';
+    }
+
+    function resetGame() {
+      socket.emit('host:reset');
+    }
+
+    function renderPlayers(players) {
+      const list = document.getElementById('players-list');
+      document.getElementById('stat-players').textContent = players.length;
+      document.getElementById('player-count').textContent = players.length;
+
+      if (players.length === 0) {
+        list.innerHTML = '<div class="empty-state" id="empty-state"><span class="empty-state-icon">👥</span>No players yet. Share the PIN!</div>';
+        return;
+      }
+
+      list.innerHTML = players.map((p, i) => `
+        <div class="player-card" style="animation-delay:${i * 0.05}s;">
+          <div class="player-avatar" style="background:${p.color}20; border:2px solid ${p.color};">
+            <span>${p.avatar}</span>
+          </div>
+          <span class="player-name">${escapeHtml(p.nickname)}</span>
+          <span style="font-size:0.75rem; color:var(--text-muted);">#${i + 1}</span>
+        </div>
+      `).join('');
+    }
+
+    function updateStatus(status) {
+      const el = document.getElementById('stat-status');
+      const map = { waiting: 'Waiting', countdown: 'Live!', reveal: 'Revealed' };
+      el.textContent = map[status] || status;
+    }
+
+    function showCountdown(value) {
+      const overlay = document.getElementById('countdown-overlay');
+      const numEl = document.getElementById('countdown-number');
+      overlay.classList.add('active');
+      numEl.textContent = value;
+      numEl.classList.remove('tick');
+      void numEl.offsetWidth;
+      numEl.classList.add('tick');
+    }
+
+    function hideCountdown() {
+      document.getElementById('countdown-overlay').classList.remove('active');
+    }
+
+    function showReveal() {
+      hideCountdown();
+      document.getElementById('reveal-overlay').classList.add('active');
+      startConfetti();
+    }
+
+    function hideReveal() {
+      document.getElementById('reveal-overlay').classList.remove('active');
+      stopConfetti();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('host-error');
+      el.textContent = msg;
+      el.classList.add('visible');
+      document.getElementById('start-btn').disabled = false;
+      document.getElementById('start-btn').innerHTML = '<span>▶</span> Start Game';
+    }
+
+    function clearError() {
+      const el = document.getElementById('host-error');
+      el.textContent = '';
+      el.classList.remove('visible');
+    }
+  </script>
+</body>
+</html>

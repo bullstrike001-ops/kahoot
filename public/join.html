@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Join Game – QuizBlitz</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+</head>
+<body>
+  <div class="page">
+    <div class="container" style="max-width:460px;">
+
+      <div class="brand">
+        <span class="brand-icon">⚡</span>
+        <div class="brand-name">QuizBlitz</div>
+      </div>
+
+      <!-- Join Form -->
+      <div class="card join-form" id="join-form">
+        <h2 style="margin-bottom:24px; text-align:center;">Join the Game</h2>
+
+        <div class="form-group">
+          <label class="form-label" for="pin-input">Game PIN</label>
+          <input
+            type="text"
+            id="pin-input"
+            class="form-input"
+            placeholder="e.g. 482910"
+            maxlength="6"
+            autocomplete="off"
+            inputmode="numeric"
+            style="font-size:1.6rem; letter-spacing:6px; text-align:center; font-weight:700;"
+          />
+          <div class="form-error" id="pin-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="nickname-input">Nickname</label>
+          <input
+            type="text"
+            id="nickname-input"
+            class="form-input"
+            placeholder="Your name"
+            maxlength="20"
+            autocomplete="off"
+          />
+          <div class="form-error" id="nick-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Choose your avatar</label>
+          <div class="avatar-grid" id="avatar-grid"></div>
+          <div class="form-error" id="avatar-error"></div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <button class="btn btn-primary btn-full btn-lg" id="join-btn" onclick="handleJoin()">
+            <span>🚀</span> Join Game
+          </button>
+          <div class="form-error" id="join-error" style="text-align:center; margin-top:10px;"></div>
+        </div>
+      </div>
+
+      <!-- Success State -->
+      <div class="join-success card" id="join-success">
+        <span class="success-emoji" id="success-avatar">🦊</span>
+        <div class="success-title">You're in! 🎉</div>
+        <div class="text-secondary" id="success-name">Ready to play</div>
+        <div class="waiting-dots" style="justify-content:center;">
+          <span></span><span></span><span></span>
+        </div>
+        <div class="text-muted" style="font-size:0.85rem; margin-top:12px;">
+          Waiting for the host to start…
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Countdown Overlay -->
+  <div class="countdown-overlay" id="countdown-overlay">
+    <div class="countdown-label">Get ready!</div>
+    <div class="countdown-number" id="countdown-number">10</div>
+    <div class="countdown-subtext">Game starting in…</div>
+  </div>
+
+  <!-- Reveal Overlay -->
+  <div class="reveal-overlay" id="reveal-overlay">
+    <canvas id="confetti-canvas"></canvas>
+    <span class="reveal-emoji">😄</span>
+    <div class="reveal-title">APRIL FOOLS!</div>
+    <div class="reveal-subtitle">No quiz today! 🎉</div>
+    <div class="reveal-action">
+      <a href="/join" class="btn btn-outline btn-lg">Join again?</a>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+  <script>
+    const AVATARS = ['🦊', '🐼', '🦁', '🐯', '🐨', '🦄', '🐸', '🐧',
+                     '🦋', '🐙', '🦖', '🐳', '🦝', '🐻', '🦩', '🐬',
+                     '🦜', '🦔', '🐢', '🦥', '🦦', '🐝', '🦕', '🌸'];
+
+    let selectedAvatar = null;
+    const socket = io();
+
+    // Pre-fill PIN from URL
+    const urlPin = new URLSearchParams(window.location.search).get('pin');
+    if (urlPin) {
+      document.getElementById('pin-input').value = urlPin;
+      setTimeout(() => document.getElementById('nickname-input').focus(), 100);
+    }
+
+    // Build avatar grid
+    const grid = document.getElementById('avatar-grid');
+    AVATARS.forEach(emoji => {
+      const div = document.createElement('div');
+      div.className = 'avatar-option';
+      div.textContent = emoji;
+      div.onclick = () => {
+        document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
+        div.classList.add('selected');
+        selectedAvatar = emoji;
+        document.getElementById('avatar-error').classList.remove('visible');
+      };
+      grid.appendChild(div);
+    });
+
+    // Select first avatar by default
+    grid.firstChild.click();
+
+    // Socket events
+    socket.on('game:state', ({ status, countdownValue }) => {
+      if (status === 'countdown') showCountdown(countdownValue);
+      if (status === 'reveal') showReveal();
+    });
+
+    socket.on('game:countdown', ({ value }) => showCountdown(value));
+    socket.on('game:reveal', () => { hideCountdown(); showReveal(); });
+    socket.on('game:reset', () => { hideCountdown(); hideReveal(); showJoinForm(); });
+
+    socket.on('join:success', ({ player }) => {
+      document.getElementById('join-form').classList.add('hidden');
+      const success = document.getElementById('join-success');
+      success.classList.add('active');
+      document.getElementById('success-avatar').textContent = player.avatar;
+      document.getElementById('success-name').textContent = `Hey, ${player.nickname}! 👋`;
+    });
+
+    socket.on('join:error', ({ message }) => {
+      showError('join-error', message);
+      document.getElementById('join-btn').disabled = false;
+      document.getElementById('join-btn').textContent = '🚀 Join Game';
+    });
+
+    function handleJoin() {
+      const pin = document.getElementById('pin-input').value.trim();
+      const nickname = document.getElementById('nickname-input').value.trim();
+
+      clearErrors();
+
+      let valid = true;
+      if (!pin || pin.length !== 6) {
+        showError('pin-error', 'Please enter a valid 6-digit PIN.');
+        valid = false;
+      }
+      if (!nickname) {
+        showError('nick-error', 'Please enter a nickname.');
+        valid = false;
+      }
+      if (!selectedAvatar) {
+        showError('avatar-error', 'Please select an avatar.');
+        valid = false;
+      }
+      if (!valid) return;
+
+      const btn = document.getElementById('join-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> Joining…';
+
+      socket.emit('player:join', { pin, nickname, avatar: selectedAvatar });
+    }
+
+    function clearErrors() {
+      ['pin-error', 'nick-error', 'avatar-error', 'join-error'].forEach(id => {
+        const el = document.getElementById(id);
+        el.classList.remove('visible');
+        el.textContent = '';
+      });
+    }
+
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.classList.add('visible');
+    }
+
+    function showJoinForm() {
+      document.getElementById('join-form').classList.remove('hidden');
+      document.getElementById('join-success').classList.remove('active');
+      document.getElementById('join-btn').disabled = false;
+      document.getElementById('join-btn').innerHTML = '<span>🚀</span> Join Game';
+    }
+
+    function showCountdown(value) {
+      const overlay = document.getElementById('countdown-overlay');
+      const numEl = document.getElementById('countdown-number');
+      overlay.classList.add('active');
+      numEl.textContent = value;
+      numEl.classList.remove('tick');
+      void numEl.offsetWidth;
+      numEl.classList.add('tick');
+    }
+
+    function hideCountdown() {
+      document.getElementById('countdown-overlay').classList.remove('active');
+    }
+
+    function showReveal() {
+      hideCountdown();
+      document.getElementById('reveal-overlay').classList.add('active');
+      startConfetti();
+    }
+
+    function hideReveal() {
+      document.getElementById('reveal-overlay').classList.remove('active');
+      stopConfetti();
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const form = document.getElementById('join-form');
+        if (!form.classList.contains('hidden')) handleJoin();
+      }
+    });
+  </script>
+</body>
+</html>
