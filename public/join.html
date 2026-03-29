@@ -221,6 +221,10 @@
     currentNumberEl = setCountdownNumber(value, currentNumberEl);
   });
 
+  sock.on('countdown-sync', ({ serverTime, remaining }) => {
+    currentNumberEl = setCountdownNumber(remaining, currentNumberEl);
+  });
+
   sock.on('game-reset', ({ pin }) => {
     cntOverlay.classList.add('hidden');
     revealOverlay.classList.add('hidden');
