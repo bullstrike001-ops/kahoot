@@ -61,9 +61,13 @@
           </div>
           <div class="qr-hint" id="qr-url"></div>
           <div style="margin-top: 16px;">
-            <div class="status-bar" style="justify-content:center;">
+            <div class="status-bar" style="justify-content:center; gap:16px;">
               <div class="status-dot" id="status-dot"></div>
               <span id="status-text">Connecting…</span>
+              <button id="mute-btn" title="Toggle sound"
+                style="background:none; border:none; cursor:pointer; font-size:1.4rem; line-height:1; padding:0; color:inherit;">
+                🔊
+              </button>
             </div>
           </div>
         </div>
@@ -92,6 +96,8 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="client.js"></script>
+  <!-- audio.js depends on no other scripts; loaded after client.js to match DOM-ready order -->
+  <script src="audio.js"></script>
   <script>
     const socket = io();
     const pinEl = document.getElementById('pin-value');
@@ -103,6 +109,12 @@
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
     const startBtn = document.getElementById('start-btn');
+    const muteBtn  = document.getElementById('mute-btn');
+
+    muteBtn.addEventListener('click', () => {
+      const nowMuted = AudioManager.toggleMute();
+      muteBtn.textContent = nowMuted ? '🔇' : '🔊';
+    });
 
     // Load QR code
     async function loadQR() {
@@ -121,6 +133,7 @@
 
     socket.on('connect', () => {
       setStatus(true, 'Live');
+      AudioManager.playWaiting();
     });
 
     socket.on('disconnect', () => {
@@ -136,8 +149,9 @@
       pinEl.textContent = pin;
       renderPlayers(players);
       updateStartButton(players);
-      if (status === 'countdown') showCountdown(countdownValue);
-      if (status === 'reveal') showReveal();
+      if (status === 'waiting')   AudioManager.playWaiting();
+      if (status === 'countdown') { AudioManager.stopWaiting(); showCountdown(countdownValue); }
+      if (status === 'reveal')    showReveal();
     });
 
     socket.on('game:reset', ({ pin }) => {
@@ -147,6 +161,8 @@
       hideCountdown();
       hideReveal();
       loadQR();
+      AudioManager.stopAll();
+      AudioManager.playWaiting();
     });
 
     socket.on('players:update', ({ players }) => {
@@ -155,11 +171,13 @@
     });
 
     socket.on('game:countdown', ({ value }) => {
+      AudioManager.playCountdownBeep();
       showCountdown(value);
     });
 
     socket.on('game:reveal', () => {
       hideCountdown();
+      AudioManager.playAprilFools();
       showReveal();
     });
 
