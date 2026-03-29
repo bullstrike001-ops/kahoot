@@ -11,22 +11,21 @@ COPY packages/common/package.json ./packages/common/
 COPY packages/web/package.json ./packages/web/
 COPY packages/socket/package.json ./packages/socket/
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+RUN --mount=type=cache,target=/pnpm/store pnpm install --frozen-lockfile
 
 COPY . .
 
-RUN pnpm build
+RUN pnpm --filter @rahoot/web build
 
 # ---- RUNNER ----
 FROM alpine:3.21 AS runner
 
-RUN apk add --no-cache nginx nodejs supervisor
+RUN apk add --no-cache nginx supervisor
 
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
 
 COPY --from=builder /app/packages/web/dist /app/web
-COPY --from=builder /app/packages/socket/dist/index.cjs /app/socket/index.cjs
 
 EXPOSE 3000
 
