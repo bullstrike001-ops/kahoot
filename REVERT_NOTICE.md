@@ -1,0 +1,1 @@
+# This is a placeholder file to denote the revert commit. Actual revert functionality should be handled through Git commands in the repository locally or through GitHub UI as GitHub API does not support direct revert to specific commits.
