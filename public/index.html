@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kahoot — Live Display</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <!-- ── Main lobby display ─────────────────────────────── -->
+  <div class="display-container" id="lobby-view">
+    <header class="display-header">
+      <div class="logo">🎮 KahootPrank</div>
+      <div class="pin-badge">
+        Game PIN<span id="display-pin">------</span>
+      </div>
+    </header>
+
+    <main class="display-body">
+      <!-- QR Code -->
+      <div class="qr-card">
+        <h2>Scan to Join</h2>
+        <div id="qr-code"></div>
+        <p class="join-url" id="join-url-text"></p>
+      </div>
+
+      <!-- Player list -->
+      <div class="players-card">
+        <h2>
+          Players
+          <span class="player-count-badge" id="player-count">0</span>
+        </h2>
+        <div class="players-grid" id="players-grid">
+          <span style="color:rgba(255,255,255,0.3); font-size:0.9rem;">Waiting for players…</span>
+        </div>
+      </div>
+    </main>
+
+    <footer class="display-footer">
+      Go to <strong id="join-url-footer"></strong> on your phone and enter the PIN to join!
+    </footer>
+  </div>
+
+  <!-- ── Countdown overlay ──────────────────────────────── -->
+  <div class="overlay" id="countdown-overlay">
+    <p class="countdown-label">Get Ready!</p>
+    <div class="countdown-number" id="countdown-number">10</div>
+    <p class="countdown-sub">Game starting…</p>
+  </div>
+
+  <!-- ── Reveal overlay ────────────────────────────────── -->
+  <div class="overlay" id="reveal-overlay">
+    <div class="reveal-emoji">😄</div>
+    <div class="reveal-title">APRIL FOOLS!</div>
+    <div class="reveal-subtitle">No quiz today!</div>
+    <div class="reveal-tagline">Hope you had fun waiting 😂</div>
+  </div>
+
+  <!-- Confetti canvas (shared) -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/client.js"></script>
+  <script>
+    const socket = io();
+
+    const lobbyView       = document.getElementById('lobby-view');
+    const countdownOverlay = document.getElementById('countdown-overlay');
+    const revealOverlay    = document.getElementById('reveal-overlay');
+    const countdownNumber  = document.getElementById('countdown-number');
+    const confettiCanvas   = document.getElementById('confetti-canvas');
+    const displayPin       = document.getElementById('display-pin');
+    const playerCount      = document.getElementById('player-count');
+    const playersGrid      = document.getElementById('players-grid');
+    const qrCodeEl         = document.getElementById('qr-code');
+    const joinUrlText      = document.getElementById('join-url-text');
+    const joinUrlFooter    = document.getElementById('join-url-footer');
+
+    // Build join URL and QR code once we know the PIN
+    function setupJoinUrl(pin) {
+      const url = `${location.origin}/join?pin=${pin}`;
+      joinUrlText.textContent = url;
+      joinUrlFooter.textContent = `${location.hostname}/join`;
+
+      // Render QR via free API (no external JS lib needed)
+      const img = document.createElement('img');
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}`;
+      img.alt = 'QR Code';
+      img.width = 180;
+      img.height = 180;
+      qrCodeEl.innerHTML = '';
+      qrCodeEl.appendChild(img);
+    }
+
+    function renderPlayers(players) {
+      playerCount.textContent = players.length;
+      if (players.length === 0) {
+        playersGrid.innerHTML = '<span style="color:rgba(255,255,255,0.3);font-size:0.9rem;">Waiting for players…</span>';
+        return;
+      }
+      playersGrid.innerHTML = players
+        .map(p => `<div class="player-chip">${p.avatar} ${p.nickname}</div>`)
+        .join('');
+    }
+
+    function applyState(state, countdown) {
+      lobbyView.style.display         = state === 'lobby'     ? '' : 'none';
+      if (state === 'countdown') {
+        showCountdownOverlay(countdownOverlay, countdownNumber, countdown || 10);
+        hideOverlay(revealOverlay);
+      } else if (state === 'reveal') {
+        hideOverlay(countdownOverlay);
+        showRevealOverlay(revealOverlay, confettiCanvas);
+      } else {
+        hideOverlay(countdownOverlay);
+        hideOverlay(revealOverlay);
+      }
+    }
+
+    socket.on('init', ({ pin, state, players, countdown }) => {
+      displayPin.textContent = pin;
+      setupJoinUrl(pin);
+      renderPlayers(players);
+      applyState(state, countdown);
+    });
+
+    socket.on('player-list', ({ players }) => renderPlayers(players));
+
+    socket.on('phase-change', ({ state, countdown }) => applyState(state, countdown));
+
+    socket.on('countdown-tick', ({ countdown }) => {
+      countdownNumber.textContent = countdown;
+    });
+  </script>
+</body>
+</html>
