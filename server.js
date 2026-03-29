@@ -14,8 +14,10 @@ const PORT = process.env.PORT || 3000;
 let gameState = {
   pin: generatePin(),
   players: [],
-  phase: 'lobby',
+  phase: 'lobby', // lobby | countdown | reveal
   countdownValue: 10,
+  countdownStartTime: null,
+  countdownDuration: 10000, // 10 seconds in milliseconds
   countdownInterval: null,
 };
 
@@ -32,6 +34,8 @@ function resetGame() {
     players: [],
     phase: 'lobby',
     countdownValue: 10,
+    countdownStartTime: null,
+    countdownDuration: 10000,
     countdownInterval: null,
   };
 }
@@ -49,7 +53,7 @@ function assignColor(index) {
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Routes for HTML pages (ADD THESE LINES)
+// Routes for HTML pages
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -96,6 +100,7 @@ app.get('/state', (req, res) => {
 io.on('connection', (socket) => {
   console.log(`[socket] connected: ${socket.id}`);
 
+  // Send current state to new connection
   socket.emit('state-update', {
     pin: gameState.pin,
     players: gameState.players,
@@ -103,6 +108,7 @@ io.on('connection', (socket) => {
     countdownValue: gameState.countdownValue,
   });
 
+  // Player joins the game
   socket.on('player-join', ({ nickname, avatar, pin }) => {
     if (pin !== gameState.pin) {
       socket.emit('join-error', { message: 'Invalid PIN. Please check and try again.' });
@@ -117,6 +123,7 @@ io.on('connection', (socket) => {
       socket.emit('join-error', { message: 'Nickname must be 2–20 characters.' });
       return;
     }
+    // Check for duplicate nickname
     if (gameState.players.find((p) => p.nickname.toLowerCase() === trimmed.toLowerCase())) {
       socket.emit('join-error', { message: 'That nickname is already taken!' });
       return;
@@ -143,6 +150,7 @@ io.on('connection', (socket) => {
     });
   });
 
+  // Host starts the game with synchronized countdown
   socket.on('host-start', () => {
     if (gameState.phase !== 'lobby') return;
     if (gameState.players.length === 0) {
@@ -152,26 +160,44 @@ io.on('connection', (socket) => {
 
     gameState.phase = 'countdown';
     gameState.countdownValue = 10;
+    gameState.countdownStartTime = Date.now();
+    gameState.countdownDuration = 10000; // 10 seconds
 
-    console.log('[game] countdown started');
+    console.log('[game] countdown started at', gameState.countdownStartTime);
 
-    io.emit('phase-change', { phase: 'countdown', countdownValue: 10 });
+    // Send phase change with server timestamp to all clients
+    io.emit('phase-change', {
+      phase: 'countdown',
+      countdownValue: 10,
+      startTime: gameState.countdownStartTime,
+      duration: gameState.countdownDuration,
+    });
 
+    // Server-side interval to sync clients every 100ms
     gameState.countdownInterval = setInterval(() => {
-      gameState.countdownValue -= 1;
+      const elapsed = Date.now() - gameState.countdownStartTime;
+      const remaining = Math.max(0, Math.ceil((gameState.countdownDuration - elapsed) / 1000));
 
-      if (gameState.countdownValue <= 0) {
+      if (remaining <= 0) {
         clearInterval(gameState.countdownInterval);
         gameState.countdownInterval = null;
         gameState.phase = 'reveal';
+        gameState.countdownStartTime = null;
+
+        // Trigger reveal on ALL clients
         io.emit('phase-change', { phase: 'reveal', countdownValue: 0 });
         console.log('[game] reveal triggered');
       } else {
-        io.emit('countdown-tick', { value: gameState.countdownValue });
+        // Send server time sync to keep all clients in sync
+        io.emit('countdown-sync', {
+          serverTime: Date.now(),
+          remaining: remaining,
+        });
       }
-    }, 1000);
+    }, 100); // Sync every 100ms
   });
 
+  // Host resets the game
   socket.on('host-reset', () => {
     console.log('[game] reset');
     resetGame();
@@ -182,6 +208,7 @@ io.on('connection', (socket) => {
     });
   });
 
+  // Handle disconnection
   socket.on('disconnect', () => {
     const index = gameState.players.findIndex((p) => p.id === socket.id);
     if (index !== -1) {
