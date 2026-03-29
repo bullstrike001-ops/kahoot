@@ -1,7 +1,0 @@
-services:
-  rahoot:
-    image: ralex91/rahoot:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./config:/app/config
