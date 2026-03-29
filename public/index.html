@@ -44,6 +44,11 @@
               </div>
             </div>
           </div>
+
+          <!-- Start Game Button -->
+          <button class="btn btn-primary btn-lg" id="start-btn" style="width:100%; margin-top:20px; display:none;">
+            🚀 Start Game
+          </button>
         </div>
 
         <!-- Right: QR Code -->
@@ -52,7 +57,7 @@
             Scan to join
           </div>
           <div class="qr-container">
-            <img id="qr-img" src="" alt="QR Code" width="160" height="160" />
+            <img id="qr-img" src="" alt="QR Code" width="240" height="240" />
           </div>
           <div class="qr-hint" id="qr-url"></div>
           <div style="margin-top: 16px;">
@@ -97,6 +102,7 @@
     const qrUrl = document.getElementById('qr-url');
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
+    const startBtn = document.getElementById('start-btn');
 
     // Load QR code
     async function loadQR() {
@@ -129,6 +135,7 @@
     socket.on('game:state', ({ pin, players, status, countdownValue }) => {
       pinEl.textContent = pin;
       renderPlayers(players);
+      updateStartButton(players);
       if (status === 'countdown') showCountdown(countdownValue);
       if (status === 'reveal') showReveal();
     });
@@ -136,6 +143,7 @@
     socket.on('game:reset', ({ pin }) => {
       pinEl.textContent = pin;
       renderPlayers([]);
+      updateStartButton([]);
       hideCountdown();
       hideReveal();
       loadQR();
@@ -143,6 +151,7 @@
 
     socket.on('players:update', ({ players }) => {
       renderPlayers(players);
+      updateStartButton(players);
     });
 
     socket.on('game:countdown', ({ value }) => {
@@ -175,6 +184,14 @@
         </div>
       `).join('');
     }
+
+    function updateStartButton(players) {
+      startBtn.style.display = players.length > 0 ? 'block' : 'none';
+    }
+
+    startBtn.addEventListener('click', () => {
+      socket.emit('host:start');
+    });
 
     function showCountdown(value) {
       const overlay = document.getElementById('countdown-overlay');
