@@ -1,1 +1,0 @@
-Fix the blocking countdown by updating setCountdownNumber to directly set numberEl.textContent = value instead of cloning the DOM node.
