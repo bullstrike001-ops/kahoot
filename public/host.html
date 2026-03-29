@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kahoot — Host</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <!-- ── Host lobby control panel (shown only in lobby state) ── -->
+  <div class="host-container" id="lobby-view">
+    <div class="host-card">
+      <div class="host-header">
+        <div class="host-logo">🎮 KahootPrank</div>
+        <div class="host-badge">Host Controls</div>
+      </div>
+
+      <div class="host-pin">
+        <div>
+          <div class="label">Game PIN</div>
+          <div class="pin-value" id="host-pin">------</div>
+        </div>
+        <div style="color:rgba(255,255,255,0.4); font-size:0.85rem;">
+          Share this with players
+        </div>
+      </div>
+
+      <div class="host-players-section">
+        <h3>
+          <span>Connected Players</span>
+          <span class="player-count-badge" id="host-player-count">0</span>
+        </h3>
+        <div class="host-players-list" id="host-players-list">
+          <span class="no-players-msg">No players yet…</span>
+        </div>
+      </div>
+
+      <button class="btn-start" id="start-btn">
+        🚀 Start Game
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Countdown overlay (same as display & player pages) ── -->
+  <div class="overlay" id="countdown-overlay">
+    <p class="countdown-label">Get Ready!</p>
+    <div class="countdown-number" id="countdown-number">10</div>
+    <p class="countdown-sub">Game starting…</p>
+  </div>
+
+  <!-- ── Reveal overlay (same as display & player pages) ──── -->
+  <div class="overlay" id="reveal-overlay">
+    <div class="reveal-emoji">😄</div>
+    <div class="reveal-title">APRIL FOOLS!</div>
+    <div class="reveal-subtitle">No quiz today!</div>
+    <div class="reveal-tagline">Hope you had fun waiting 😂</div>
+  </div>
+
+  <!-- Confetti canvas -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/client.js"></script>
+  <script>
+    const socket = io();
+
+    const lobbyView        = document.getElementById('lobby-view');
+    const countdownOverlay = document.getElementById('countdown-overlay');
+    const revealOverlay    = document.getElementById('reveal-overlay');
+    const countdownNumber  = document.getElementById('countdown-number');
+    const confettiCanvas   = document.getElementById('confetti-canvas');
+    const hostPin          = document.getElementById('host-pin');
+    const hostPlayerCount  = document.getElementById('host-player-count');
+    const hostPlayersList  = document.getElementById('host-players-list');
+    const startBtn         = document.getElementById('start-btn');
+
+    function renderPlayers(players) {
+      hostPlayerCount.textContent = players.length;
+      if (players.length === 0) {
+        hostPlayersList.innerHTML = '<span class="no-players-msg">No players yet…</span>';
+        return;
+      }
+      hostPlayersList.innerHTML = players
+        .map(p => `<div class="host-player-chip">${p.avatar} ${p.nickname}</div>`)
+        .join('');
+    }
+
+    /**
+     * Apply game state — host behaves identically to display and player
+     * after leaving lobby.
+     */
+    function applyState(state, countdown) {
+      // Lobby: show control panel, hide overlays
+      lobbyView.style.display = state === 'lobby' ? '' : 'none';
+
+      if (state === 'countdown') {
+        showCountdownOverlay(countdownOverlay, countdownNumber, countdown || 10);
+        hideOverlay(revealOverlay);
+      } else if (state === 'reveal') {
+        hideOverlay(countdownOverlay);
+        showRevealOverlay(revealOverlay, confettiCanvas);
+      } else {
+        hideOverlay(countdownOverlay);
+        hideOverlay(revealOverlay);
+      }
+    }
+
+    socket.on('init', ({ pin, state, players, countdown }) => {
+      hostPin.textContent = pin;
+      renderPlayers(players);
+      applyState(state, countdown);
+    });
+
+    socket.on('player-list', ({ players }) => renderPlayers(players));
+
+    // phase-change is broadcast to ALL clients including host
+    socket.on('phase-change', ({ state, countdown }) => applyState(state, countdown));
+
+    socket.on('countdown-tick', ({ countdown }) => {
+      countdownNumber.textContent = countdown;
+    });
+
+    startBtn.addEventListener('click', () => {
+      startBtn.disabled = true;
+      socket.emit('start-game');
+    });
+  </script>
+</body>
+</html>
