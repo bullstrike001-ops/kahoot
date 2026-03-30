@@ -73,10 +73,10 @@ const AudioManager = (() => {
   stopAll();
   _play('aprilFools');
   // Redă de 3 ori cu pauze
-  setTimeout(() => _play('aprilFools'), 15000);
-  setTimeout(() => _play('aprilFools'), 30000);
+  setTimeout(() => _play('aprilFools'), 13000);
+  setTimeout(() => _play('aprilFools'), 26000);
   // Laugh după ultima replicare
-  setTimeout(() => _play('laugh'), 7500);
+  setTimeout(() => _play('laugh'), 39000);
 }
 
   /** Pause and rewind every sound. */
