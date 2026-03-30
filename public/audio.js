@@ -73,7 +73,7 @@ const AudioManager = (() => {
   stopAll();
   _play('aprilFools');
   // Redă de 3 ori cu pauze
-  setTimeout(() => _play('aprilFools'), 11500);
+  setTimeout(() => _play('aprilFools'), 13500);
   setTimeout(() => _play('aprilFools'), 24500);
   // Laugh după ultima replicare
   setTimeout(() => _play('laugh'), 37500);
