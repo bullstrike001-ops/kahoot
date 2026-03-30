@@ -70,11 +70,14 @@ const AudioManager = (() => {
 
   /** Play the April Fools reveal sound combo (trombone + laugh). */
   function playAprilFools() {
-    stopAll();
-    _play('aprilFools');
-    // Stagger the laugh 2 s after the trombone
-    setTimeout(() => _play('laugh'), 2000);
-  }
+  stopAll();
+  _play('aprilFools');
+  // Redă de 3 ori cu pauze
+  setTimeout(() => _play('aprilFools'), 2500);
+  setTimeout(() => _play('aprilFools'), 5000);
+  // Laugh după ultima replicare
+  setTimeout(() => _play('laugh'), 7500);
+}
 
   /** Pause and rewind every sound. */
   function stopAll() {
