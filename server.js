@@ -38,6 +38,75 @@ function assignColor(index) {
   return AVATAR_COLORS[index % AVATAR_COLORS.length];
 }
 
+// FUNNY NICKNAMES IN ROMANIAN
+const FUNNY_NICKNAMES = [
+  "Patsanu cu BMW",
+  "Bratan din Ciocana",
+  "Pirojoc cu Cartof",
+  "Regele la Rutieră",
+  "Cumătrul de Aur",
+  "Borsetka Gucci",
+  "Harbuz Murăt",
+  "Mâncător de Semki",
+  "Șef la Piața Centrală",
+  "Student pe Rollton",
+  "Bidon cu Jin",
+  "Kuliok cu Plăcinte",
+  "Kapets la Sesie",
+  "Hackeru de la UTM",
+  "Troleibuzul 22",
+  "Patsan Serios",
+  "Zeama lu Mama",
+  "Zavodila la Cămin",
+  "Fizruk Obosit",
+  "Ultima Suta de Lei",
+  "Taximetrist Grăbit",
+  "Bratu cu Combinații",
+  "Inspector la Shaorma",
+  "Krasavcik din Centru",
+  "Ghiuj de la Buiucani",
+  "Majoru cu Bursă",
+  "Caloșul Norocos",
+  "Șuba lu Bunicu",
+  "Campion la Table",
+  "Vitezoman pe Zebră",
+  "Regele la RedBull",
+  "Zaiț la Examen",
+  "Pahanul din Râșcani",
+  "Kvartirant Flămând",
+  "Zvezda din Cămin",
+  "Sponsorul de la Botanica",
+  "Prezident la Scară",
+  "Cumătru cu Relații",
+  "Tatăl la Pelmeni",
+  "Bratu de la Sculeni",
+  "Nacialnicu la Troleibuz",
+  "Kentosu din Parcare",
+  "Șmecher de Telecentru",
+  "Fata de la MallDova",
+  "Krasotka cu Aifon",
+  "Prințul de la Piața Auto",
+  "Băiatu cu Rutierele",
+  "Expert la Șașlâc",
+  "Sărac da Mândru",
+  "Patsan cu Speranțe",
+  "Director la Garaj",
+  "Abonament la Restanțe",
+  "Văru din Italia"
+];
+
+let usedNicknames = new Set();
+
+function getRandomFunnyNickname() {
+  let nickname;
+  do {
+    nickname = FUNNY_NICKNAMES[Math.floor(Math.random() * FUNNY_NICKNAMES.length)];
+  } while (usedNicknames.has(nickname) && usedNicknames.size < FUNNY_NICKNAMES.length);
+  
+  usedNicknames.add(nickname);
+  return nickname;
+}
+
 // Rate limiter for page routes
 const pageLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -121,16 +190,20 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Generate funny nickname for display
+    const displayNickname = getRandomFunnyNickname();
+
     const player = {
       id: socket.id,
-      nickname: nickname.trim(),
+      nickname: displayNickname, // This is what appears on host screen
+      realNickname: nickname.trim(), // Store the real name (for reference)
       avatar,
       color: assignColor(gameState.players.length)
     };
 
     gameState.players.push(player);
 
-    socket.emit('join:success', { player });
+    socket.emit('join:success', { player: { ...player, nickname: displayNickname } });
     io.emit('players:update', { players: gameState.players });
   });
 
@@ -166,6 +239,7 @@ io.on('connection', (socket) => {
       clearInterval(countdownInterval);
       countdownInterval = null;
     }
+    usedNicknames.clear(); // Reset funny nicknames for next game
     gameState = {
       pin: generatePin(),
       players: [],
